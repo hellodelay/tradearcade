@@ -170,8 +170,9 @@ export default function App() {
         directionToUse = direction === 'right' ? 'left' : 'right';
     }
 
-    const isBuy = directionToUse === 'right';
-    const isCorrect = (isBuy && currentStock.isPositive) || (!isBuy && !currentStock.isPositive);
+    const isBuy = directionToUse === 'left';
+    // Buy Low (correct if negative), Sell High (correct if positive)
+    const isCorrect = (isBuy && !currentStock.isPositive) || (!isBuy && currentStock.isPositive);
 
     const resultType = isCorrect ? 'CORRECT' : 'WRONG';
     setFeedback(resultType);
@@ -320,8 +321,9 @@ export default function App() {
                 <h3 className="text-3xl font-pixel text-center mb-8 text-yellow-400">BRIEFING</h3>
                 
                 <div className="space-y-6 mb-10 font-pixel text-xs leading-loose">
-                    <p className="text-emerald-400">➤ SWIPE RIGHT: BUY 🚀</p>
-                    <p className="text-rose-400">➤ SWIPE LEFT: SELL 📉</p>
+                    <p className="text-center text-yellow-400 border-b border-white/10 pb-4 mb-4">BUY LOW, SELL HIGH</p>
+                    <p className="text-emerald-400">➤ SWIPE RIGHT: SELL 📉</p>
+                    <p className="text-rose-400">➤ SWIPE LEFT: BUY 🚀</p>
                     
                     <div className="border-t-2 border-white/20 pt-6">
                         <div className="flex items-center space-x-3 mb-2">

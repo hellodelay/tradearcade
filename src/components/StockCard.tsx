@@ -43,8 +43,8 @@ export const StockCard: React.FC<StockCardProps> = ({
   const potentialBonus = Math.floor(timeBonusFactor * 1000);
   const potentialScore = 1000 + potentialBonus + (streak * 100);
 
-  const leftAction = isReversed ? "BUY" : "SELL";
-  const rightAction = isReversed ? "SELL" : "BUY";
+  const leftAction = isReversed ? "SELL" : "BUY";
+  const rightAction = isReversed ? "BUY" : "SELL";
 
   const handleDragEnd = (_: any, info: any) => {
     if (info.offset.x > 80) {
@@ -134,8 +134,8 @@ export const StockCard: React.FC<StockCardProps> = ({
                   transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                   className="flex flex-col items-center bg-black/80 px-2 py-1 border border-white/20"
                 >
-                   <ChevronLeft className="text-rose-400 w-4 h-4" />
-                   <span className="text-[6px] font-pixel text-rose-400 mt-1">{leftAction}</span>
+                   <ChevronLeft className={cn("w-4 h-4", leftAction === "BUY" ? "text-rose-400" : "text-emerald-400")} />
+                   <span className={cn("text-[6px] font-pixel mt-1", leftAction === "BUY" ? "text-rose-400" : "text-emerald-400")}>{leftAction}</span>
                 </motion.div>
 
                 <motion.div 
@@ -143,8 +143,8 @@ export const StockCard: React.FC<StockCardProps> = ({
                   transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                   className="flex flex-col items-center bg-black/80 px-2 py-1 border border-white/20"
                 >
-                   <ChevronRight className="text-emerald-400 w-4 h-4" />
-                   <span className="text-[6px] font-pixel text-emerald-400 mt-1">{rightAction}</span>
+                   <ChevronRight className={cn("w-4 h-4", rightAction === "BUY" ? "text-rose-400" : "text-emerald-400")} />
+                   <span className={cn("text-[6px] font-pixel mt-1", rightAction === "BUY" ? "text-rose-400" : "text-emerald-400")}>{rightAction}</span>
                 </motion.div>
               </div>
             )}
