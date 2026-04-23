@@ -1,0 +1,23 @@
+{
+  "name": "Trade Arcade",
+  "short_name": "TradeArcade",
+  "description": "High-speed stock trading arcade simulator.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/google/material-design-icons/master/png/action/trending_up/materialicons/192dp/1x/baseline_trending_up_black_192dp.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/google/material-design-icons/master/png/action/trending_up/materialicons/512dp/1x/baseline_trending_up_black_512dp.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
