@@ -1,0 +1,131 @@
+import { motion, useMotionValue, useTransform } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
+import { StockData } from '../lib/gameUtils';
+import { StockChart } from './StockChart';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+interface StockCardProps {
+  stock: StockData;
+  onSwipe: (dir: 'left' | 'right') => void;
+  isFront: boolean;
+  decisionTimeLeft?: number;
+  decisionTimeLimit?: number;
+  tradeResult?: 'CORRECT' | 'WRONG' | 'TIMEOUT' | null;
+}
+
+export const StockCard: React.FC<StockCardProps> = ({ 
+    stock, 
+    onSwipe, 
+    isFront, 
+    decisionTimeLeft = 1, 
+    decisionTimeLimit = 1,
+    tradeResult
+}) => {
+  const [isSwiped, setIsSwiped] = useState(false);
+  const [swipedDir, setSwipedDir] = useState<number>(0);
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const opacity = useTransform(x, [-300, -150, 0, 150, 300], [0, 1, 1, 1, 0]);
+  
+  const progressWidth = (decisionTimeLeft / decisionTimeLimit) * 100;
+
+  const handleDragEnd = (_: any, info: any) => {
+    if (info.offset.x > 80) {
+      setIsSwiped(true);
+      setSwipedDir(500);
+      onSwipe('right');
+    } else if (info.offset.x < -80) {
+      setIsSwiped(true);
+      setSwipedDir(-500);
+      onSwipe('left');
+    }
+  };
+
+  // Exit animation: Far horizontal, very short vertical
+  const exitY = tradeResult === 'CORRECT' ? -40 : tradeResult ? 40 : 0;
+  const targetX = swipedDir !== 0 ? (swipedDir > 0 ? 800 : -800) : 0;
+
+  return (
+    <motion.div
+      layout
+      key={stock.id}
+      style={{ 
+          x, 
+          rotate, 
+          opacity, 
+          zIndex: isFront ? 10 : 0 
+      }}
+      initial={{ scale: 0.8, opacity: 0, y: 50 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{ 
+        x: targetX,
+        y: exitY, 
+        opacity: 0,
+        scale: 0.5,
+        rotate: targetX > 0 ? 90 : -90,
+        transition: { duration: 0.5, ease: "easeOut" }
+      }}
+      drag={isFront && !isSwiped ? "x" : false}
+      dragConstraints={isSwiped ? false : { left: 0, right: 0 }}
+      dragElastic={0.5}
+      onDragEnd={handleDragEnd}
+      className={cn(
+        "absolute w-full max-w-[320px] aspect-[3/4.2] bg-white text-black pixel-card select-none cursor-grab active:cursor-grabbing overflow-hidden",
+        isFront ? "opacity-100 scale-100" : "opacity-0 scale-50 pointer-events-none"
+      )}
+    >
+      <div className="relative h-full flex flex-col">
+        {/* Decision Timer Bar */}
+        {isFront && (
+            <div className="absolute top-0 left-0 w-full h-4 bg-slate-200 z-50 border-b-4 border-black">
+                <motion.div 
+                    initial={false}
+                    animate={{ width: `${progressWidth}%` }}
+                    className={cn(
+                        "h-full transition-all duration-100",
+                        progressWidth < 30 ? "bg-rose-500" : "bg-indigo-500"
+                    )} 
+                />
+            </div>
+        )}
+        
+        <div className="p-4 flex justify-between items-start mt-4">
+          <div>
+            <h2 className="text-3xl font-pixel leading-none">{stock.ticker}</h2>
+            <p className="text-[10px] font-pixel opacity-70 mt-1 uppercase">{stock.name}</p>
+          </div>
+          <div className="bg-black text-white px-3 py-1 text-[8px] font-pixel">
+            RETRO_MOD
+          </div>
+        </div>
+
+        <div className="flex-1 px-4 relative flex items-center justify-center min-h-0 py-2">
+            <StockChart prices={stock.prices} color={stock.isPositive ? '#22c55e' : '#ef4444'} />
+        </div>
+
+        <div className="p-4 grid grid-cols-2 gap-2 border-t-4 border-black bg-slate-100">
+          <div className="flex flex-col">
+            <span className="text-[8px] font-pixel text-slate-500 mb-1">VAL</span>
+            <span className="text-2xl font-black">${stock.prices[stock.prices.length - 1].toFixed(1)}</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[8px] font-pixel text-slate-500 mb-1">TYPE</span>
+            <div className={cn(
+              "flex items-center space-x-1 font-black px-2 py-1 border-2 border-black",
+              stock.isPositive ? "bg-emerald-400" : "bg-rose-400"
+            )}>
+              {stock.isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+              <span className="text-xs font-pixel uppercase">{stock.isPositive ? 'BULL' : 'BEAR'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};

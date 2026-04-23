@@ -1,0 +1,6 @@
+{
+  "name": "Trade Arcade",
+  "description": "A high-speed stock trading game. Swipe right to buy, left to sell. Master the markets before time runs out!",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
