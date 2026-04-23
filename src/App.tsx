@@ -4,6 +4,7 @@ import { TrendingUp, Timer, Trophy, Play, RotateCcw, ArrowRight, ArrowLeft, Shop
 import confetti from 'canvas-confetti';
 import { generateStock, StockData } from './lib/gameUtils';
 import { StockCard } from './components/StockCard';
+import { SwipeActionCard } from './components/SwipeActionCard';
 import { sounds } from './lib/sounds';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -20,6 +21,7 @@ const INITIAL_NEXT_DELAY = 1000;
 const MIN_NEXT_DELAY = 300;
 const SCALING_FACTOR = 0.05;
 const GAME_DURATION = 30;
+const INITIAL_DAY_TARGET = 15000;
 
 interface VFXItem {
     id: number;
@@ -30,13 +32,23 @@ interface VFXItem {
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('MENU');
+  const [currentDay, setCurrentDay] = useState(1);
+  const [dayTarget, setDayTarget] = useState(INITIAL_DAY_TARGET);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [stocks, setStocks] = useState<StockData[]>([]);
   const [feedback, setFeedback] = useState<'CORRECT' | 'WRONG' | 'TIMEOUT' | null>(null);
   const [lastResult, setLastResult] = useState<'CORRECT' | 'WRONG' | 'TIMEOUT' | null>(null);
   const [shake, setShake] = useState(false);
-  const [highScore, setHighScore] = useState(0);
+  const [bestRunSales, setBestRunSales] = useState(() => {
+    const saved = localStorage.getItem('trade_arcade_best_sales');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [bestRunDays, setBestRunDays] = useState(() => {
+    const saved = localStorage.getItem('trade_arcade_best_days');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [totalRunSales, setTotalRunSales] = useState(0);
   const [vfx, setVfx] = useState<VFXItem[]>([]);
   
   const [streak, setStreak] = useState(0);
@@ -46,9 +58,11 @@ export default function App() {
   const decisionIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const getDecisionLimit = useCallback(() => {
-    const reduced = INITIAL_DECISION_LIMIT * Math.pow(1 - SCALING_FACTOR, streak);
+    // Scaling difficulty based on streak + current day
+    const dayModifier = Math.pow(0.95, currentDay - 1);
+    const reduced = INITIAL_DECISION_LIMIT * Math.pow(1 - SCALING_FACTOR, streak) * dayModifier;
     return Math.max(MIN_DECISION_LIMIT, reduced);
-  }, [streak]);
+  }, [streak, currentDay]);
 
   const triggerVFX = (type: 'CORRECT' | 'WRONG') => {
     const icons = type === 'CORRECT' 
@@ -190,8 +204,20 @@ export default function App() {
     nextStock();
   };
 
-  const startGame = () => {
-    setScore(0);
+  const startGame = (resetProgression: boolean = true) => {
+    if (resetProgression) {
+        setCurrentDay(1);
+        setDayTarget(INITIAL_DAY_TARGET);
+        setScore(0);
+        setTotalRunSales(0);
+    } else {
+        // Advance progression
+        setTotalRunSales(prev => prev + score);
+        setCurrentDay(prev => prev + 1);
+        setDayTarget(prev => Math.floor(prev * 1.3));
+        setScore(0);
+    }
+    
     setTimeLeft(GAME_DURATION);
     setStreak(0);
     setIsReversed(false);
@@ -203,8 +229,16 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (score > highScore) setHighScore(score);
-  }, [score, highScore]);
+    const currentTotal = totalRunSales + score;
+    if (currentTotal > bestRunSales) {
+      setBestRunSales(currentTotal);
+      localStorage.setItem('trade_arcade_best_sales', currentTotal.toString());
+    }
+    if (currentDay > bestRunDays) {
+      setBestRunDays(currentDay);
+      localStorage.setItem('trade_arcade_best_days', currentDay.toString());
+    }
+  }, [score, totalRunSales, currentDay, bestRunSales, bestRunDays]);
 
   return (
     <div className={cn("relative w-full h-screen flex flex-col items-center justify-center bg-[#1a1a2e] overflow-hidden p-6 z-0", shake && "shake")}>
@@ -249,21 +283,26 @@ export default function App() {
                             TRADE<br/><span className="text-indigo-400">ARCADE</span>
                         </h1>
                     </div>
-                    <p className="text-white font-pixel text-[10px] tracking-widest bg-indigo-900/50 py-2">INSERT COIN TO START</p>
+                    <p className="text-white font-pixel text-[10px] tracking-widest bg-indigo-900/50 py-2 uppercase">Realistic Stock Simulator</p>
                 </div>
             </div>
 
-            <div className="flex flex-col space-y-4 w-full max-w-[280px]">
-                <button
-                    onClick={() => setGameState('TUTORIAL')}
-                    className="pixel-btn bg-white text-black py-6 font-pixel text-xl flex items-center justify-center space-x-3"
-                >
-                    <Play className="w-6 h-6 fill-black" />
-                    <span>START_RUN</span>
-                </button>
-                <div className="bg-black py-4 px-6 border-4 border-indigo-900">
-                    <span className="text-[10px] text-indigo-400 font-pixel block mb-1">HI_SCORE</span>
-                    <span className="font-pixel text-white text-xl">${highScore}</span>
+            <div className="flex flex-col space-y-8 w-full items-center">
+                <SwipeActionCard 
+                    centerLabel="LET'S_TRADE!!" 
+                    rightLabel="TO_START"
+                    onSwipeRight={() => setGameState('TUTORIAL')} 
+                />
+                
+                <div className="bg-black py-4 px-6 border-4 border-indigo-900 grid grid-cols-2 gap-4 w-full max-w-[280px]">
+                    <div>
+                        <span className="text-[8px] text-indigo-400 font-pixel block mb-1">BEST_RUN</span>
+                        <span className="font-pixel text-white text-xs">${bestRunSales.toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span className="text-[8px] text-indigo-400 font-pixel block mb-1">MAX_DAYS</span>
+                        <span className="font-pixel text-white text-xs">{bestRunDays}</span>
+                    </div>
                 </div>
             </div>
           </motion.div>
@@ -283,17 +322,28 @@ export default function App() {
                 <div className="space-y-6 mb-10 font-pixel text-xs leading-loose">
                     <p className="text-emerald-400">➤ SWIPE RIGHT: BUY 🚀</p>
                     <p className="text-rose-400">➤ SWIPE LEFT: SELL 📉</p>
-                    <div className="border-t-2 border-white/20 pt-4 text-white/50">
-                        <p>WARNING: MARKET CAN REVERSE AT ANY TIME. ADAPT OR LIQUIDATE.</p>
+                    
+                    <div className="border-t-2 border-white/20 pt-6">
+                        <div className="flex items-center space-x-3 mb-2">
+                           <div className="bg-yellow-400 text-black px-2 py-1 text-[8px] font-pixel animate-pulse border-2 border-black">
+                                REVERSE MARKET
+                            </div>
+                            <span className="text-yellow-400">DETECTED</span>
+                        </div>
+                        <p className="text-white/60">WHEN ACTIVE: SWIPE RULES ARE INVERTED. DO THE OPPOSITE ACTION.</p>
                     </div>
                 </div>
 
-                <button
-                    onClick={startGame}
-                    className="w-full bg-white text-black py-6 font-pixel text-xl pixel-btn"
-                >
-                    BEGIN_SESSION
-                </button>
+                <div className="flex justify-center mt-4">
+                    <SwipeActionCard 
+                        centerLabel="START_DAY_1" 
+                        leftLabel="TO_MENU"
+                        rightLabel="TO_BEGIN"
+                        onSwipeLeft={() => setGameState('MENU')}
+                        onSwipeRight={() => startGame(true)}
+                        variant="success"
+                    />
+                </div>
             </div>
           </motion.div>
         )}
@@ -310,8 +360,11 @@ export default function App() {
             <div className="w-full max-w-2xl bg-black border-4 border-white p-4 mt-2 mb-4 relative">
                 <div className="flex justify-between items-center">
                     <div className="flex flex-col">
-                        <span className="text-[8px] font-pixel text-white/50 mb-1">PORTFOLIO</span>
-                        <span className="text-4xl md:text-5xl font-black text-white tabular-nums">${score}</span>
+                        <div className="flex items-center space-x-2 mb-1">
+                            <span className="text-[8px] font-pixel text-yellow-400">DAY_{currentDay}</span>
+                            <span className="text-[8px] font-pixel text-white/40">TARGET: ${dayTarget.toLocaleString()}</span>
+                        </div>
+                        <span className="text-4xl md:text-5xl font-black text-white tabular-nums">${score.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center space-x-6">
                         <div className="flex flex-col items-end">
@@ -352,6 +405,8 @@ export default function App() {
                             decisionTimeLeft={decisionTimeLeft}
                             decisionTimeLimit={getDecisionLimit()}
                             tradeResult={lastResult}
+                            streak={streak}
+                            isReversed={isReversed}
                         />
                     ))}
                 </AnimatePresence>
@@ -375,46 +430,57 @@ export default function App() {
           >
             <div className="bg-black border-8 border-white p-10 text-white shadow-2xl w-full space-y-8">
                 <div>
-                    <h2 className="text-[10px] font-pixel text-white/50 mb-4 tracking-widest">FINAL_BALANCE</h2>
-                    <div className="text-4xl md:text-5xl font-pixel text-yellow-400 mb-2">
-                        ${score}
+                    <h2 className="text-[10px] font-pixel text-white/50 mb-4 tracking-widest uppercase">DAY_{currentDay}_REPORT</h2>
+                    <div className={cn(
+                        "text-2xl font-pixel py-2 mb-4 border-2",
+                        score >= dayTarget ? "text-emerald-400 border-emerald-400" : "text-rose-400 border-rose-400"
+                    )}>
+                        {score >= dayTarget ? 'QUOTA_MET' : 'QUOTA_FAILED'}
                     </div>
-                    <div className="text-emerald-400 font-pixel text-xs">
-                        TOTAL_WINNERS: {Math.floor(score / 1000)}
+                    <div className="text-4xl md:text-5xl font-pixel text-yellow-400 mb-2">
+                        ${score.toLocaleString()}
+                    </div>
+                    <div className="text-white/50 font-pixel text-[10px]">
+                        TARGET: ${dayTarget.toLocaleString()}
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="bg-indigo-900/50 p-4 border-2 border-white">
-                        <span className="text-[8px] font-pixel text-white/50 block mb-1">STREAK</span>
-                        <span className="font-pixel text-white text-xl">x{streak}</span>
+                        <span className="text-[8px] font-pixel text-white/50 block mb-1">RUN_TOTAL</span>
+                        <span className="font-pixel text-white text-lg">${(totalRunSales + score).toLocaleString()}</span>
                     </div>
                     <div className="bg-indigo-900/50 p-4 border-2 border-white">
-                        <span className="text-[8px] font-pixel text-white/50 block mb-1">BEST</span>
-                        <span className="font-pixel text-white text-lg">${highScore}</span>
+                        <span className="text-[8px] font-pixel text-white/50 block mb-1">RECORD</span>
+                        <span className="font-pixel text-white text-lg">${bestRunSales.toLocaleString()}</span>
                     </div>
                 </div>
-
-                {score >= highScore && score > 0 && (
-                    <div className="bg-yellow-400 text-black py-2 font-pixel text-[10px] animate-bounce">
-                        NEW RECORD !!!
-                    </div>
-                )}
             </div>
 
-            <div className="flex flex-col space-y-4 w-full">
-                <button
-                    onClick={startGame}
-                    className="w-full py-6 bg-white text-black font-pixel text-xl pixel-btn"
-                >
-                    RETRY_SESSION
-                </button>
-                <button
-                    onClick={() => setGameState('MENU')}
-                    className="text-white/50 font-pixel text-[10px] hover:text-white"
-                >
-                    QUIT_TO_CONSOLE
-                </button>
+            <div className="flex flex-col space-y-6 w-full items-center">
+                {score >= dayTarget ? (
+                    <SwipeActionCard 
+                        centerLabel={`DAY_${currentDay}_CLEAR`}
+                        leftLabel="TO_QUIT"
+                        rightLabel="TO_NEXT_DAY"
+                        onSwipeLeft={() => setGameState('MENU')}
+                        onSwipeRight={() => startGame(false)}
+                        variant="success"
+                    />
+                ) : (
+                    <SwipeActionCard 
+                        centerLabel="SESSION_END"
+                        leftLabel="TO_QUIT"
+                        rightLabel="TO_RESTART"
+                        onSwipeLeft={() => setGameState('MENU')}
+                        onSwipeRight={() => startGame(true)}
+                        variant="danger"
+                    />
+                )}
+                
+                <div className="text-white/20 font-pixel text-[8px] uppercase tracking-widest animate-pulse">
+                    Swipe Left to Quit | Swipe Right to Continue
+                </div>
             </div>
           </motion.div>
         )}
